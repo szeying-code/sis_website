@@ -9,3 +9,29 @@ To change the words or the starting tasks later: open config.js on GitHub, click
 
 Tips for your sister: open the link on her phone, then use "Add to Home Screen" so it opens like an app.
 Her ticks and tasks are saved only on her own phone or browser. If she opens the link on another device, she gets the starting list again.
+
+
+PWA UPGRADE (added)
+-------------------
+New files:
+- manifest.webmanifest: app name, colours, standalone display and icon sizes.
+- sw.js: caches the core website files so the site can open offline after
+  the first successful visit.
+- icons/icon-192.png and icons/icon-512.png: home-screen/app icons.
+
+To publish:
+1. Upload ALL files and the icons folder to the ROOT of your existing
+   GitHub repository (do not put them inside an extra folder).
+2. Commit the changes to the branch used by GitHub Pages.
+3. Wait for GitHub Pages to deploy.
+4. On iPhone, open the published HTTPS website in Safari.
+5. Tap Share > Add to Home Screen.
+6. If offered, enable "Open as Web App", then tap Add.
+
+Important:
+- This is an installable PWA, not a native iOS WidgetKit widget.
+- Your existing task data still uses browser localStorage. It is NOT yet
+  synchronised between family members or devices.
+- Offline support applies after the first successful online visit.
+- To publish future updates, change the CACHE_NAME in sw.js (for example v2)
+  so devices refresh their cached app files.
