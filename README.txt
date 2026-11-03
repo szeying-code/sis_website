@@ -35,3 +35,20 @@ Important:
 - Offline support applies after the first successful online visit.
 - To publish future updates, change the CACHE_NAME in sw.js (for example v2)
   so devices refresh their cached app files.
+
+SHARED FAMILY CHECKLIST (Supabase)
+----------------------------------
+This version uses Supabase RPC functions to store the checklist centrally.
+Family members opening the shared link see the same list. The page checks for
+changes about every 4 seconds while it is open.
+
+The family access token is provided in the URL fragment (#key=...). The app
+stores it in this browser's local storage and removes it from the address bar.
+Do not post the family link publicly: anyone with it can edit the checklist.
+The Supabase publishable key is intended for browser use; never add a Supabase
+secret/service-role key to this site.
+
+For first launch, open the special family link while online. If the shared
+database is empty, the app seeds it with the existing local checklist (if
+present) or the default tasks in config.js. Other devices then load the shared
+list from Supabase.

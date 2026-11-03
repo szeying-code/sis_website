@@ -15,6 +15,10 @@ var GIFT = {
   // so the two lists don't share the same ticks.
   storageKey: "birthday-todo-1",
 
+  // Supabase connection for shared family checklist. Use the publishable key only.
+  supabaseUrl: "https://dnpltbsocftbswaqmhyf.supabase.co",
+  supabasePublishableKey: "sb_publishable_tK2hGWCzVVpbd1fkd21v8w_KXB_-L1S",
+
   // The tasks she starts with. One per line, with a comma at the end of every line except the last.
   // She can add her own and delete these on the page, but this list is what she gets the first time.
   tasks: [

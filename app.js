@@ -1,18 +1,55 @@
-// This file makes the to-do list work. You don't need to edit it.
+// SIS Birthday Checklist — shared family version
 (function () {
   function $(id) { return document.getElementById(id); }
   var KEY = GIFT.storageKey || "birthday-todo-1";
+  var API = (GIFT.supabaseUrl || "").replace(/\/$/, "");
+  var API_KEY = GIFT.supabasePublishableKey || "";
+  var TOKEN_KEY = "sis-birthday-family-token";
+  var tasks = [];
+  var busy = false;
+  var lastSnapshot = "";
 
-  // ---------- saved data (kept in this phone or browser only) ----------
-  function load() {
-    try { var s = JSON.parse(localStorage.getItem(KEY)); if (Array.isArray(s)) return s; } catch (e) {}
-    return null;
+  // The family token is supplied in the URL fragment, which is not sent to the web server.
+  var fragment = new URLSearchParams(location.hash.replace(/^#/, ""));
+  var tokenFromLink = fragment.get("key");
+  if (tokenFromLink) {
+    try { localStorage.setItem(TOKEN_KEY, tokenFromLink); } catch (e) {}
+    history.replaceState(null, "", location.pathname + location.search);
   }
-  function save() { try { localStorage.setItem(KEY, JSON.stringify(tasks)); } catch (e) {} }
-  var uid = Date.now();
-  function newId() { return "t" + (uid++); }
-  function seed() { return GIFT.tasks.map(function (t) { return { id: newId(), text: t, done: false }; }); }
-  var tasks = load() || seed();
+  var TOKEN = tokenFromLink || (function () { try { return localStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return ""; } })();
+
+  function apiCall(fn, body) {
+    return fetch(API + "/rest/v1/rpc/" + fn, {
+      method: "POST",
+      headers: {
+        "apikey": API_KEY,
+        "Authorization": "Bearer " + API_KEY,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
+    }).then(function (r) {
+      if (!r.ok) return r.text().then(function (t) { throw new Error(t || ("Supabase error " + r.status)); });
+      return r.json();
+    });
+  }
+  function getTasks() {
+    return apiCall("get_birthday_tasks", { p_token: TOKEN }).then(function (rows) {
+      return (rows || []).map(function (r) { return { id: r.id, text: r.title, done: !!r.completed, sort_order: r.sort_order || 0 }; });
+    });
+  }
+  function addTask(text, order) {
+    return apiCall("add_birthday_task", { p_token: TOKEN, p_title: text, p_sort_order: order || 0 });
+  }
+  function updateTask(t) {
+    return apiCall("update_birthday_task", { p_token: TOKEN, p_task_id: t.id, p_completed: t.done });
+  }
+  function deleteTask(t) {
+    return apiCall("delete_birthday_task", { p_token: TOKEN, p_task_id: t.id });
+  }
+  function showError(err) {
+    console.error("Shared checklist error:", err);
+    alert("Couldn't sync with the family checklist. Please check your internet connection and reload.\n\n" + (err.message || err));
+  }
 
   // ---------- page text ----------
   document.title = GIFT.pageTitle;
@@ -66,19 +103,25 @@
       var del = document.createElement("button"); del.type = "button"; del.className = "del"; del.textContent = "✕";
       del.setAttribute("aria-label", "Delete task: " + t.text);
       cb.addEventListener("change", function () {
-        t.done = cb.checked; save(); stats();
-        if (t.done) { var r = box.getBoundingClientRect(); burst(r.left + r.width / 2, r.top + r.height / 2, 26); if (allDone()) finale(); }
+        if (busy) return; busy = true;
+        var wasDone = t.done; t.done = cb.checked; cb.disabled = true;
+        updateTask(t).then(function () {
+          stats(); if (t.done && !wasDone) { var r = box.getBoundingClientRect(); burst(r.left + r.width / 2, r.top + r.height / 2, 26); if (allDone()) finale(); }
+          lastSnapshot = JSON.stringify(tasks);
+        }).catch(function (e) { t.done = wasDone; cb.checked = wasDone; showError(e); }).finally(function () { busy = false; cb.disabled = false; });
       });
-      del.addEventListener("click", function () { tasks = tasks.filter(function (x) { return x !== t; }); save(); render(); });
+      del.addEventListener("click", function () {
+        if (busy) return; busy = true; del.disabled = true;
+        deleteTask(t).then(function () { tasks = tasks.filter(function (x) { return x.id !== t.id; }); lastSnapshot = JSON.stringify(tasks); render(); })
+          .catch(showError).finally(function () { busy = false; del.disabled = false; });
+      });
       li.appendChild(cb); li.appendChild(lb); li.appendChild(del); list.appendChild(li);
     });
     $("empty").hidden = tasks.length > 0;
     stats();
   }
   function allDone() { return tasks.length > 0 && tasks.every(function (t) { return t.done; }); }
-  function finale() {
-    for (var i = 0; i < 5; i++) setTimeout(function () { burst(Math.random() * innerWidth, innerHeight * .25, 40); }, i * 220);
-  }
+  function finale() { for (var i = 0; i < 5; i++) setTimeout(function () { burst(Math.random() * innerWidth, innerHeight * .25, 40); }, i * 220); }
   function stats() {
     var n = tasks.length, d = tasks.filter(function (t) { return t.done; }).length, p = n ? Math.round(d / n * 100) : 0;
     $("count").textContent = d + " of " + n + " done";
@@ -91,17 +134,57 @@
   // ---------- buttons ----------
   $("addForm").addEventListener("submit", function (e) {
     e.preventDefault();
-    var v = $("newTask").value.trim(); if (!v) return;
-    tasks.push({ id: newId(), text: v, done: false }); $("newTask").value = ""; save(); render();
-    var items = $("list").children; if (items.length) items[items.length - 1].scrollIntoView({ block: "nearest", behavior: "smooth" });
+    var v = $("newTask").value.trim(); if (!v || busy) return;
+    busy = true; var button = $("addForm").querySelector('button[type="submit"]'); button.disabled = true;
+    addTask(v, tasks.length).then(function () { $("newTask").value = ""; return refresh(true); })
+      .then(function () { var items = $("list").children; if (items.length) items[items.length - 1].scrollIntoView({ block: "nearest", behavior: "smooth" }); })
+      .catch(showError).finally(function () { busy = false; button.disabled = false; });
   });
   $("clearDone").addEventListener("click", function () {
-    if (!tasks.some(function (t) { return t.done; })) return;
-    if (confirm("Remove all ticked tasks?")) { tasks = tasks.filter(function (t) { return !t.done; }); save(); render(); }
+    var done = tasks.filter(function (t) { return t.done; });
+    if (!done.length || busy) return;
+    if (confirm("Remove all ticked tasks?")) {
+      busy = true; Promise.all(done.map(deleteTask)).then(function () { return refresh(true); }).catch(showError).finally(function () { busy = false; });
+    }
   });
   $("resetAll").addEventListener("click", function () {
-    if (confirm("Start again with the original list? Your own tasks will be removed.")) { tasks = seed(); save(); render(); }
+    if (busy) return;
+    if (confirm("Start again with the original list? Your own tasks will be removed.")) {
+      busy = true;
+      Promise.all(tasks.map(deleteTask)).then(function () {
+        return GIFT.tasks.reduce(function (promise, title, i) { return promise.then(function () { return addTask(title, i); }); }, Promise.resolve());
+      }).then(function () { return refresh(true); }).catch(showError).finally(function () { busy = false; });
+    }
   });
 
-  render();
+  function refresh(force) {
+    return getTasks().then(function (fresh) {
+      var snapshot = JSON.stringify(fresh);
+      if (force || snapshot !== lastSnapshot) { tasks = fresh; lastSnapshot = snapshot; render(); }
+    });
+  }
+  function start() {
+    if (!API || !API_KEY || !TOKEN) {
+      alert("Family link information is missing. Please open the special family sharing link.");
+      return;
+    }
+    getTasks().then(function (rows) {
+      if (!rows.length) {
+        // First visit seeds the shared list from this browser's saved list, or the configured defaults.
+        var old = null; try { old = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+        var initial = Array.isArray(old) && old.length ? old : GIFT.tasks.map(function (text) { return { text: text, done: false }; });
+        return initial.reduce(function (promise, t, i) {
+          return promise.then(function () {
+            return addTask(t.text || t.title, i).then(function (newId) {
+              if (t.done && newId) return apiCall("update_birthday_task", { p_token: TOKEN, p_task_id: newId, p_completed: true });
+            });
+          });
+        }, Promise.resolve()).then(refresh);
+      }
+      tasks = rows; lastSnapshot = JSON.stringify(tasks); render();
+    }).catch(showError);
+    // Poll for changes made by other family members.
+    setInterval(function () { if (!busy && document.visibilityState === "visible") refresh(false).catch(function (e) { console.warn(e); }); }, 4000);
+  }
+  start();
 })();
