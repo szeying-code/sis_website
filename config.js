@@ -9,7 +9,7 @@ var GIFT = {
 
   doneTitle: "All done! 🎉",
   doneMessage: "You finished your whole birthday list. Best birthday ever!",
-  footer: "Made with love 🥑",
+  footer: "Made by sze_y",
 
   // Change this word only if you make a second list in the same website,
   // so the two lists don't share the same ticks.
