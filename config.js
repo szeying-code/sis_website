@@ -18,6 +18,8 @@ var GIFT = {
   // Supabase connection for shared family checklist. Use the publishable key only.
   supabaseUrl: "https://dnpltbsocftbswaqmhyf.supabase.co",
   supabasePublishableKey: "sb_publishable_tK2hGWCzVVpbd1fkd21v8w_KXB_-L1S",
+  // Fallback for iPhone/WhatsApp browsers that omit URL fragments.
+  familyToken: "SISfamily2026",
 
   // The tasks she starts with. One per line, with a comma at the end of every line except the last.
   // She can add her own and delete these on the page, but this list is what she gets the first time.

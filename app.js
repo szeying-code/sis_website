@@ -16,7 +16,9 @@
     try { localStorage.setItem(TOKEN_KEY, tokenFromLink); } catch (e) {}
     history.replaceState(null, "", location.pathname + location.search);
   }
-  var TOKEN = tokenFromLink || (function () { try { return localStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return ""; } })();
+  var TOKEN = tokenFromLink || (function () { try { return localStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return ""; } })() || GIFT.familyToken || "";
+  // Persist the configured fallback so the installed iPhone app can reopen without a special URL.
+  if (TOKEN) { try { localStorage.setItem(TOKEN_KEY, TOKEN); } catch (e) {} }
 
   function apiCall(fn, body) {
     return fetch(API + "/rest/v1/rpc/" + fn, {

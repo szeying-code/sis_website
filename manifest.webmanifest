@@ -3,7 +3,7 @@
   "name": "Sis Birthday To-do List",
   "short_name": "Sis Birthday",
   "description": "A birthday to-do list made with love.",
-  "start_url": "./#key=SISfamily2026",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
