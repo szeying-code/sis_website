@@ -1,6 +1,6 @@
 /* SIS Birthday PWA service worker.
    The cache version is deliberately named so future updates can replace it. */
-const CACHE_NAME = "sis-birthday-pwa-v2";
+const CACHE_NAME = "sis-birthday-pwa-v3";
 const APP_FILES = [
   "./",
   "./index.html",

@@ -52,3 +52,10 @@ For first launch, open the special family link while online. If the shared
 database is empty, the app seeds it with the existing local checklist (if
 present) or the default tasks in config.js. Other devices then load the shared
 list from Supabase.
+
+
+FAMILY PWA INSTALL UPDATE
+The installed app start URL now includes the family access token in the URL fragment.
+After publishing this version, remove the old home-screen app from each iPhone,
+open https://szeying-code.github.io/sis_website/ in Safari, then use Share > Add to Home Screen.
+The installed app should then open with the shared family checklist. Keep the family link private.
