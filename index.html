@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Birthday To-do List 🎂</title>
+<meta name="theme-color" content="#dcd0ff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎂</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="confetti" aria-hidden="true"></canvas>
+<main class="wrap">
+
+  <!-- Banner (text comes from config.js) -->
+  <header class="hero">
+    <div class="deco" aria-hidden="true"><span>✨</span><span>💜</span><span>🎈</span><span>🩷</span><span>✨</span></div>
+    <h1 id="title"></h1>
+    <p id="message"></p>
+    <p class="from" id="from"></p>
+  </header>
+
+  <!-- Progress -->
+  <section class="card prog" aria-live="polite">
+    <div class="prog-top"><b id="count">0 of 0 done</b><span id="pct">0%</span></div>
+    <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="fill" id="fill"><span class="runner" aria-hidden="true">🏸</span></div></div>
+  </section>
+
+  <!-- Done banner -->
+  <section class="card done" id="doneBox" hidden>
+    <div class="big">🎉</div>
+    <b id="doneTitle"></b>
+    <p id="doneMessage"></p>
+  </section>
+
+  <!-- Add a task -->
+  <form class="add" id="addForm" autocomplete="off">
+    <label class="sr" for="newTask">New task</label>
+    <input id="newTask" type="text" maxlength="80" placeholder="Add your own task…">
+    <button type="submit">Add</button>
+  </form>
+
+  <!-- The list -->
+  <ul class="list" id="list"></ul>
+  <p class="empty" id="empty" hidden>Nothing here yet. Add your first task above 💜</p>
+
+  <div class="tools">
+    <button type="button" id="clearDone">Clear ticked ✔</button>
+    <button type="button" id="resetAll">Start again ↺</button>
+  </div>
+
+  <footer id="footer"></footer>
+</main>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
