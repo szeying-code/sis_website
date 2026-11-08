@@ -19,6 +19,29 @@
 <canvas id="confetti" aria-hidden="true"></canvas>
 <main class="wrap">
 
+  <!-- Password screen: the checklist below stays hidden until the password is correct -->
+  <section class="card gate" id="gate">
+    <div class="gate-icon" aria-hidden="true">🎂</div>
+    <h1 id="gateTitle"></h1>
+    <p id="gateText"></p>
+    <form id="gateForm" autocomplete="off">
+      <label class="sr" for="pw">Password</label>
+      <input id="pw" type="password" placeholder="Password" autocomplete="current-password" autocapitalize="off" required>
+      <button type="submit" id="gateBtn">Open 💜</button>
+    </form>
+    <p class="gate-msg" id="gateMsg" role="alert" hidden></p>
+  </section>
+
+  <!-- Shown when the password is wrong -->
+  <section class="card gate restricted" id="restricted" hidden>
+    <div class="gate-icon" aria-hidden="true">🚫</div>
+    <h2 id="restrictedTitle"></h2>
+    <p id="restrictedText"></p>
+    <button type="button" id="retry">Try again</button>
+  </section>
+
+  <div id="app" hidden>
+
   <!-- Banner (text comes from config.js) -->
   <header class="hero">
     <div class="deco" aria-hidden="true"><span>✨</span><span>💜</span><span>🎈</span><span>🩷</span><span>✨</span></div>
@@ -54,9 +77,11 @@
   <div class="tools">
     <button type="button" id="clearDone">Clear ticked ✔</button>
     <button type="button" id="resetAll">Start again ↺</button>
+    <button type="button" id="lockBtn">Lock 🔒</button>
   </div>
 
   <footer id="footer"></footer>
+  </div>
 </main>
 
 <script src="config.js"></script>

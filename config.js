@@ -15,11 +15,17 @@ var GIFT = {
   // so the two lists don't share the same ticks.
   storageKey: "birthday-todo-1",
 
-  // Supabase connection for shared family checklist. Use the publishable key only.
+  // Supabase connection for the shared family checklist. Use the publishable key only
+  // (never a secret or service_role key).
   supabaseUrl: "https://dnpltbsocftbswaqmhyf.supabase.co",
   supabasePublishableKey: "sb_publishable_tK2hGWCzVVpbd1fkd21v8w_KXB_-L1S",
-  // Fallback for iPhone/WhatsApp browsers that omit URL fragments.
-  familyToken: "SISfamily2026",
+
+  // Texts on the password screen. The password itself is NOT stored here:
+  // it is checked inside Supabase (see supabase-setup.sql).
+  gateTitle: "A little birthday surprise 🎂",
+  gateMessage: "Please enter the family password to open the birthday list.",
+  restrictedTitle: "Permission restricted",
+  restrictedMessage: "That password isn't right, so the list stays closed. Please check the password and try again.",
 
   // The tasks she starts with. One per line, with a comma at the end of every line except the last.
   // She can add her own and delete these on the page, but this list is what she gets the first time.

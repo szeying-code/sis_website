@@ -1,60 +1,105 @@
-// SIS Birthday Checklist — shared family version
+// SIS Birthday Checklist: password-protected shared family version
 (function () {
   function $(id) { return document.getElementById(id); }
-  var KEY = GIFT.storageKey || "birthday-todo-1";
+  var KEY = GIFT.storageKey || "birthday-todo-1"; // old single-device list, only used once to fill an empty shared list
   var API = (GIFT.supabaseUrl || "").replace(/\/$/, "");
   var API_KEY = GIFT.supabasePublishableKey || "";
-  var TOKEN_KEY = "sis-birthday-family-token";
+  var PW_KEY = "sis-birthday-password";
+  var PASSWORD = "";
   var tasks = [];
   var busy = false;
   var lastSnapshot = "";
+  var pollTimer = null;
 
-  // The family token is supplied in the URL fragment, which is not sent to the web server.
-  var fragment = new URLSearchParams(location.hash.replace(/^#/, ""));
-  var tokenFromLink = fragment.get("key");
-  if (tokenFromLink) {
-    try { localStorage.setItem(TOKEN_KEY, tokenFromLink); } catch (e) {}
-    history.replaceState(null, "", location.pathname + location.search);
-  }
-  var TOKEN = tokenFromLink || (function () { try { return localStorage.getItem(TOKEN_KEY) || ""; } catch (e) { return ""; } })() || GIFT.familyToken || "";
-  // Persist the configured fallback so the installed iPhone app can reopen without a special URL.
-  if (TOKEN) { try { localStorage.setItem(TOKEN_KEY, TOKEN); } catch (e) {} }
+  // The old public family token is no longer used.
+  try { localStorage.removeItem("sis-birthday-family-token"); } catch (e) {}
 
+  // Every call sends the password. Supabase checks it on the server, so the checklist
+  // data is never returned for a wrong password.
   function apiCall(fn, body) {
     return fetch(API + "/rest/v1/rpc/" + fn, {
       method: "POST",
-      headers: {
-        "apikey": API_KEY,
-        "Authorization": "Bearer " + API_KEY,
-        "Content-Type": "application/json"
-      },
+      headers: { "apikey": API_KEY, "Content-Type": "application/json" },
       body: JSON.stringify(body)
     }).then(function (r) {
-      if (!r.ok) return r.text().then(function (t) { throw new Error(t || ("Supabase error " + r.status)); });
-      return r.json();
+      return r.text().then(function (t) {
+        if (r.ok) return t ? JSON.parse(t) : null;
+        var e = new Error(t || ("Supabase error " + r.status));
+        e.restricted = /Permission restricted/i.test(t);
+        throw e;
+      });
     });
   }
   function getTasks() {
-    return apiCall("get_birthday_tasks", { p_token: TOKEN }).then(function (rows) {
+    return apiCall("get_birthday_tasks", { p_password: PASSWORD }).then(function (rows) {
       return (rows || []).map(function (r) { return { id: r.id, text: r.title, done: !!r.completed, sort_order: r.sort_order || 0 }; });
     });
   }
-  function addTask(text, order) {
-    return apiCall("add_birthday_task", { p_token: TOKEN, p_title: text, p_sort_order: order || 0 });
-  }
-  function updateTask(t) {
-    return apiCall("update_birthday_task", { p_token: TOKEN, p_task_id: t.id, p_completed: t.done });
-  }
-  function deleteTask(t) {
-    return apiCall("delete_birthday_task", { p_token: TOKEN, p_task_id: t.id });
-  }
+  function addTask(text, order) { return apiCall("add_birthday_task", { p_password: PASSWORD, p_title: text, p_sort_order: order || 0 }); }
+  function updateTask(t) { return apiCall("update_birthday_task", { p_password: PASSWORD, p_task_id: t.id, p_completed: t.done }); }
+  function deleteTask(t) { return apiCall("delete_birthday_task", { p_password: PASSWORD, p_task_id: t.id }); }
+
   function showError(err) {
+    if (err && err.restricted) { lock(); showRestricted(); return; }
     console.error("Shared checklist error:", err);
     alert("Couldn't sync with the family checklist. Please check your internet connection and reload.\n\n" + (err.message || err));
   }
 
+  // ---------- password screens ----------
+  function show(id, on) { $(id).hidden = !on; }
+  function showGate(message) {
+    show("app", false); show("restricted", false); show("gate", true);
+    $("pw").value = ""; $("gateBtn").disabled = false; $("gateBtn").textContent = "Open 💜";
+    $("gateMsg").hidden = !message; $("gateMsg").textContent = message || "";
+    $("pw").focus();
+  }
+  function showRestricted() { show("app", false); show("gate", false); show("restricted", true); $("retry").focus(); }
+  function showApp() { show("gate", false); show("restricted", false); show("app", true); }
+  function lock() {
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    PASSWORD = ""; tasks = []; lastSnapshot = ""; $("list").innerHTML = "";
+    try { localStorage.removeItem(PW_KEY); } catch (e) {}
+  }
+
+  // Check the password, load (or fill) the shared list, then show the checklist.
+  function login(pw, auto) {
+    $("gateBtn").disabled = true; $("gateBtn").textContent = "Checking…";
+    return apiCall("check_birthday_password", { p_password: pw }).then(function () {
+      PASSWORD = pw;
+      try { localStorage.setItem(PW_KEY, pw); } catch (e) {}
+      return loadAll();
+    }).then(function () {
+      showApp(); render();
+      if (!pollTimer) pollTimer = setInterval(function () {
+        if (!busy && document.visibilityState === "visible") refresh(false).catch(function (e) { if (e.restricted) showError(e); else console.warn(e); });
+      }, 4000);
+    }).catch(function (err) {
+      PASSWORD = "";
+      if (err.restricted) {
+        try { localStorage.removeItem(PW_KEY); } catch (e) {}
+        if (auto) showGate("Please enter the password again."); else showRestricted();
+      } else {
+        showGate("Couldn't reach the shared list. Please check your internet and try again.");
+      }
+    });
+  }
+  function loadAll() {
+    return getTasks().then(function (rows) {
+      if (rows.length) return rows;
+      // Empty shared list: fill it once (on the server) from the old local list or the starter tasks.
+      var old = null; try { old = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+      var initial = Array.isArray(old) && old.length ? old : GIFT.tasks.map(function (text) { return { text: text, done: false }; });
+      var items = initial.map(function (t) { return { title: t.text || t.title, completed: !!(t.done || t.completed) }; });
+      return apiCall("seed_birthday_tasks", { p_password: PASSWORD, p_items: items }).then(getTasks);
+    }).then(function (rows) { tasks = rows; lastSnapshot = JSON.stringify(tasks); });
+  }
+
   // ---------- page text ----------
   document.title = GIFT.pageTitle;
+  $("gateTitle").textContent = GIFT.gateTitle || "Birthday surprise 🔒";
+  $("gateText").textContent = GIFT.gateMessage || "Please enter the password.";
+  $("restrictedTitle").textContent = GIFT.restrictedTitle || "Permission restricted";
+  $("restrictedText").textContent = GIFT.restrictedMessage || "That password isn't right.";
   $("title").textContent = GIFT.title;
   $("message").textContent = GIFT.message;
   $("from").textContent = GIFT.from;
@@ -146,18 +191,22 @@
     var done = tasks.filter(function (t) { return t.done; });
     if (!done.length || busy) return;
     if (confirm("Remove all ticked tasks?")) {
-      busy = true; Promise.all(done.map(deleteTask)).then(function () { return refresh(true); }).catch(showError).finally(function () { busy = false; });
+      busy = true; apiCall("clear_done_birthday_tasks", { p_password: PASSWORD }).then(function () { return refresh(true); }).catch(showError).finally(function () { busy = false; });
     }
   });
   $("resetAll").addEventListener("click", function () {
     if (busy) return;
     if (confirm("Start again with the original list? Your own tasks will be removed.")) {
-      busy = true;
-      Promise.all(tasks.map(deleteTask)).then(function () {
-        return GIFT.tasks.reduce(function (promise, title, i) { return promise.then(function () { return addTask(title, i); }); }, Promise.resolve());
-      }).then(function () { return refresh(true); }).catch(showError).finally(function () { busy = false; });
+      busy = true; apiCall("reset_birthday_tasks", { p_password: PASSWORD, p_titles: GIFT.tasks }).then(function () { return refresh(true); }).catch(showError).finally(function () { busy = false; });
     }
   });
+  $("lockBtn").addEventListener("click", function () { lock(); showGate(""); });
+  $("gateForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var pw = $("pw").value; if (!pw) return;
+    login(pw, false);
+  });
+  $("retry").addEventListener("click", function () { showGate(""); });
 
   function refresh(force) {
     return getTasks().then(function (fresh) {
@@ -165,28 +214,15 @@
       if (force || snapshot !== lastSnapshot) { tasks = fresh; lastSnapshot = snapshot; render(); }
     });
   }
+  document.addEventListener("visibilitychange", function () {
+    if (PASSWORD && !busy && document.visibilityState === "visible") refresh(false).catch(function (e) { if (e.restricted) showError(e); });
+  });
+
+  // ---------- start ----------
   function start() {
-    if (!API || !API_KEY || !TOKEN) {
-      alert("Family link information is missing. Please open the special family sharing link.");
-      return;
-    }
-    getTasks().then(function (rows) {
-      if (!rows.length) {
-        // First visit seeds the shared list from this browser's saved list, or the configured defaults.
-        var old = null; try { old = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
-        var initial = Array.isArray(old) && old.length ? old : GIFT.tasks.map(function (text) { return { text: text, done: false }; });
-        return initial.reduce(function (promise, t, i) {
-          return promise.then(function () {
-            return addTask(t.text || t.title, i).then(function (newId) {
-              if (t.done && newId) return apiCall("update_birthday_task", { p_token: TOKEN, p_task_id: newId, p_completed: true });
-            });
-          });
-        }, Promise.resolve()).then(refresh);
-      }
-      tasks = rows; lastSnapshot = JSON.stringify(tasks); render();
-    }).catch(showError);
-    // Poll for changes made by other family members.
-    setInterval(function () { if (!busy && document.visibilityState === "visible") refresh(false).catch(function (e) { console.warn(e); }); }, 4000);
+    if (!API || !API_KEY) { showGate("This website is not connected to its database yet."); return; }
+    var saved = ""; try { saved = localStorage.getItem(PW_KEY) || ""; } catch (e) {}
+    if (saved) login(saved, true);
   }
   start();
 })();
