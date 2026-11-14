@@ -150,7 +150,7 @@
       var del = document.createElement("button"); del.type = "button"; del.className = "del"; del.textContent = "✕";
       del.setAttribute("aria-label", "Delete task: " + t.text);
       cb.addEventListener("change", function () {
-        if (busy) return; busy = true;
+        if (busy) { cb.checked = t.done; return; } busy = true;
         var wasDone = t.done; t.done = cb.checked; cb.disabled = true;
         updateTask(t).then(function () {
           stats(); if (t.done && !wasDone) { var r = box.getBoundingClientRect(); burst(r.left + r.width / 2, r.top + r.height / 2, 26); if (allDone()) finale(); }

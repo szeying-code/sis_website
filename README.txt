@@ -1,61 +1,71 @@
-Birthday to-do list: how to put it online (GitHub Pages)
+SIS BIRTHDAY TO-DO LIST
+=======================
 
-1. On GitHub, click New repository. Name it something hard to guess (for example: ying-sis-birthday-2026). Choose Public. Click Create repository.
-2. Click "uploading an existing file". Drag in these 4 files: index.html, style.css, app.js, config.js. Click Commit changes.
-3. Go to Settings > Pages. Under "Build and deployment" choose "Deploy from a branch", pick main and "/ (root)", click Save.
-4. After about a minute the link is https://YOUR-USERNAME.github.io/YOUR-REPOSITORY/ . Send it to your sister.
+A password-protected birthday checklist that the whole family shares. Everyone
+who knows the password sees the same list, and it updates about every 4 seconds
+while the page is open. It is an installable web app (PWA), not a native iOS app.
 
-To change the words or the starting tasks later: open config.js on GitHub, click the pencil icon, edit, then Commit changes.
-
-Tips for your sister: open the link on her phone, then use "Add to Home Screen" so it opens like an app.
-Her ticks and tasks are saved only on her own phone or browser. If she opens the link on another device, she gets the starting list again.
+Live site: https://szeying-code.github.io/sis_website/
 
 
-PWA UPGRADE (added)
--------------------
-New files:
-- manifest.webmanifest: app name, colours, standalone display and icon sizes.
-- sw.js: caches the core website files so the site can open offline after
-  the first successful visit.
-- icons/icon-192.png and icons/icon-512.png: home-screen/app icons.
+FILES (all of them go in the ROOT of the repository)
+----------------------------------------------------
+index.html            the page
+style.css             the look
+app.js                the logic (password screen, shared list, confetti)
+config.js             ALL the wording, the starter tasks and the Supabase connection
+sw.js                 service worker (caches the app files so the page shell opens offline)
+manifest.webmanifest  app name, colours and icons for "Add to Home Screen"
+icons/                icon-192.png and icon-512.png
 
-To publish:
-1. Upload ALL files and the icons folder to the ROOT of your existing
-   GitHub repository (do not put them inside an extra folder).
-2. Commit the changes to the branch used by GitHub Pages.
-3. Wait for GitHub Pages to deploy.
-4. On iPhone, open the published HTTPS website in Safari.
-5. Tap Share > Add to Home Screen.
-6. If offered, enable "Open as Web App", then tap Add.
-
-Important:
-- This is an installable PWA, not a native iOS WidgetKit widget.
-- Your existing task data still uses browser localStorage. It is NOT yet
-  synchronised between family members or devices.
-- Offline support applies after the first successful online visit.
-- To publish future updates, change the CACHE_NAME in sw.js (for example v2)
-  so devices refresh their cached app files.
-
-SHARED FAMILY CHECKLIST (Supabase)
-----------------------------------
-This version uses Supabase RPC functions to store the checklist centrally.
-Family members opening the shared link see the same list. The page checks for
-changes about every 4 seconds while it is open.
-
-The family access token is provided in the URL fragment (#key=...). The app
-stores it in this browser's local storage and removes it from the address bar.
-Do not post the family link publicly: anyone with it can edit the checklist.
-The Supabase publishable key is intended for browser use; never add a Supabase
-secret/service-role key to this site.
-
-For first launch, open the special family link while online. If the shared
-database is empty, the app seeds it with the existing local checklist (if
-present) or the default tasks in config.js. Other devices then load the shared
-list from Supabase.
+Do not put the files inside an extra folder, and do not forget the icons folder.
 
 
-FAMILY PWA INSTALL UPDATE
-The installed app start URL now includes the family access token in the URL fragment.
-After publishing this version, remove the old home-screen app from each iPhone,
-open https://szeying-code.github.io/sis_website/ in Safari, then use Share > Add to Home Screen.
-The installed app should then open with the shared family checklist. Keep the family link private.
+HOW IT WORKS
+------------
+- The list is stored in Supabase. The browser only talks to it through server
+  functions (RPC) that check the family password on the server. A wrong password
+  never returns any data.
+- The password is typed on the first visit and then saved in that browser's
+  local storage so you stay signed in. The "Lock" button clears it.
+- config.js contains the Supabase URL and the PUBLISHABLE key. That key is meant
+  to be public. NEVER put a secret or service_role key anywhere in this site.
+- The password itself is not in the code. It is set inside Supabase
+  (see supabase-setup.sql, which is kept separately and is not part of this folder).
+
+
+CHANGING THINGS
+---------------
+- Words, title, starter tasks: edit config.js on GitHub (pencil icon) and commit.
+- "Start again" on the page resets the list for EVERYONE back to the starter
+  tasks in config.js (it asks for confirmation first).
+- Any change to a site file: also change CACHE_NAME in sw.js (v6 -> v7, and so
+  on). The app files are served from the cache first, so phones keep showing the
+  old version until that name changes.
+
+
+PUBLISHING (GitHub Pages)
+-------------------------
+1. Upload all files and the icons folder to the root of the repository.
+2. Commit to the branch used by GitHub Pages (Settings > Pages > Deploy from a
+   branch > main > / (root)).
+3. Wait about a minute for it to deploy.
+
+
+INSTALLING ON AN IPHONE
+-----------------------
+1. Open the site in Safari (it must be the https:// link).
+2. Tap Share > Add to Home Screen. If offered, turn on "Open as Web App", then Add.
+3. Open it, type the family password once, and she is in.
+After an update, if the old version still shows, close the app fully and reopen
+it, or remove it and add it to the Home Screen again.
+
+
+GOOD TO KNOW
+------------
+- Offline: the page itself opens offline after one online visit, but the list
+  comes from Supabase, so ticking and adding tasks needs internet.
+- Keep the password private: anyone who has it can edit the list.
+- Choose a password that is not easy to guess. There is no limit on wrong tries.
+- In Supabase, keep row-level security switched on for the tasks table, with no
+  direct public access. Only the password-checking functions should be reachable.
